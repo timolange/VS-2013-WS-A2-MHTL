@@ -138,5 +138,4 @@ getMinWeightEdge(EdgeDict) ->
             end,
             FirstEdge,
             EdgeDict
-
-  ).
+            ).
