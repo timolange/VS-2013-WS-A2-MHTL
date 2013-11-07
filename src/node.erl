@@ -9,7 +9,7 @@
 -module(node).
 -import(werkzeug, [to_String/1,timeMilliSecond/0,logging/2,get_config_value/2,reset_timer/3,
 pushSL/2,popSL/1,popfiSL/1,findSL/2,findneSL/2,lengthSL/1,minNrSL/1,maxNrSL/1,emptySL/0,notemptySL/1,delete_last/1,shuffle/1]).
--author("timey").
+-author("timey","Michael").
 
 %% API
 -export([start/2]).
