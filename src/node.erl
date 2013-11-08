@@ -32,7 +32,8 @@ nil() -> nil.
   best_Edge,
   test_Edge,
   in_Branch,
-  find_count}).
+  find_count,
+  infinity_weight}).
 
 -record(edge, {weight,
   state = basic()}).
@@ -95,17 +96,43 @@ response_connect(State, Level, Edge) ->
             ->State#state{find_count = (State#state.find_count +1)};
             true-> false
           end;
-      true -> if getEdge(State,Edge)#edge.state == basic()
+   getEdge(State,Edge)#edge.state == basic()
                 -> self() !  {connect, Level, Edge};
-                true -> Edge ! {initiate, (State#state.nodeLevel + 1), getEdge(State,Edge)#edge.weight, find(), Edge}
-              end
+   true -> Edge ! {initiate, (State#state.nodeLevel + 1), getEdge(State,Edge)#edge.weight, find(), Edge}
+
    end.
 
 
 response_initiate(State, Level, FragName, NodeState, Edge) ->
+  State#state{nodeLevel = Level},
+  State#state{fragName = FragName},
+  State#state{nodeState = NodeState},
+  State#state{edgeDict = dict:update(Edge,fun(Edge)->(Edge#edge.state = Edge)end,State#state.edgeDict)},
+  State#state{best_Edge = nil()},
+  State#state{best_Weight = State#state.infinity_weight}
+.
 
-  State.
-response_test(State, Level, FragName, Edge) -> State.
+
+response_test(State, Level, FragName, Edge)
+  -> if State#state.nodeState == sleeping() ->
+        wakeup(State);
+        true->false
+     end,
+    if Level > State#state.nodeLevel
+        -> self() ! {test, Level, FragName, Edge};
+    FragName /= State#state.fragName
+        -> Edge ! {accept, Edge};
+    true -> if getEdge(State,Edge)#edge.state == basic()
+             ->   getEdge(State,Edge)#edge{state = rejected()};
+            true -> false
+            end;
+            if State#state.test_Edge /= Edge
+               -> Edge ! {reject, Edge};
+            true -> test(State)
+            end
+    end.
+
+
 response_accept(State, Edge) -> State.
 response_reject(State, Edge) -> State.
 response_report(State, Weight, Edge) -> State.
