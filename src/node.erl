@@ -84,7 +84,7 @@ loop(State) ->
 %------------Algorithmus-Funktionen----------------------------------------------
 response_connect(State, Level, Edge) ->
   if State#state.nodeState == sleeping()
-    -> State#state{nodeState = found()};
+    -> wakeup(State);
   true -> false
   end,
 
@@ -102,7 +102,9 @@ response_connect(State, Level, Edge) ->
    end.
 
 
-response_initiate(State, Level, FragName, NodeState, Edge) -> State.
+response_initiate(State, Level, FragName, NodeState, Edge) ->
+
+  State.
 response_test(State, Level, FragName, Edge) -> State.
 response_accept(State, Edge) -> State.
 response_reject(State, Edge) -> State.
