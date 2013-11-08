@@ -90,15 +90,16 @@ response_connect(State, Level, Edge) ->
 
    if Level < State#state.nodeLevel
      -> getEdge(State,Edge)#edge{state = branch()},
-         Edge ! {initiate,Level,State#state.fragName,State#state.nodeState,Edge},
+          Edge ! {initiate,Level,State#state.fragName,State#state.nodeState,Edge},
           if State#state.nodeState == find()
             ->State#state{find_count = (State#state.find_count +1)};
-          true-> false
+            true-> false
           end;
-   if getEdge(State,Edge)#edge.state == basic()-> self() !  {connect, Level, Edge};
-   true -> Edge ! {initiate, (State#state.nodeLevel + 1), getEdge(State,Edge)#edge.weight, find(), Edge}
-
-  end.
+      true -> if getEdge(State,Edge)#edge.state == basic()
+                -> self() !  {connect, Level, Edge};
+                true -> Edge ! {initiate, (State#state.nodeLevel + 1), getEdge(State,Edge)#edge.weight, find(), Edge}
+              end
+   end.
 
 
 response_initiate(State, Level, FragName, NodeState, Edge) -> State.
