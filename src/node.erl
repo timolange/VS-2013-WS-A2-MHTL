@@ -32,10 +32,11 @@ nil() -> nil.
   best_Edge,
   test_Edge,
   in_Branch,
-  find_count}).
+  find_count,
+  nodeName}).
 
 -record(edge, {weight,
-  state = basic()}).
+               state = basic()}).
 
 buildDict(EdgeList) ->
   lists:foldl(
@@ -54,7 +55,9 @@ start(NodeName, Nameservice) ->
   global:register_name(NodeName, self()),
 
   {ok, EdgeList} = file:consult("node.cfg"),
-  State = #state{edgeDict = buildDict(EdgeList)},
+  State = #state{edgeDict = buildDict(EdgeList),
+                 nodeName = NodeName
+                },
   loop(State).
 %------------Loop--------------------------------------------------------
 loop(State) ->
@@ -109,23 +112,30 @@ response_reject(State, Edge) -> State.
 response_report(State, Weight, Edge) -> State.
 response_changeroot(State, Edge) -> State.
 
-wakeup(BasicEdgeList, BranchEdgeList) ->
-  NodeState = found(),
-  NodeLevel = 0,
-  Find_count = 0,
-  AKMG = findSL(BasicEdgeList, minNrSL(BasicEdgeList)),
-  NewBasicEdgeList = popSL(BasicEdgeList),
-  NewBranchEdgeList = pushSL(BranchEdgeList, AKMG),
-  {NodeState, NodeLevel, NewBasicEdgeList, NewBranchEdgeList, Find_count}.
+wakeup(State) ->
+  {EdgeKey, EdgeVal} = getMinWeightEdgeKey(State#state.edgeDict),
+
+  NewDict = dict:update(EdgeKey,
+                          fun(Edge) -> Edge#edge{state = branch()} end,
+                          State#state.edgeDict
+                        ),
+  NewState =  State#state{
+              edgeDict = NewDict,
+              nodeLevel = 0,
+              nodeState = found(),
+              find_count = 0
+              },
+  EdgeKey ! {connect, NewState#state.nodeLevel, getTupelFromEdgeKey(NewState,EdgeKey)},
+  NewState
+  .
 
 
-test(NodeLevel, FragName, BasicEdgeList) ->
-  ListNotEmpty = notemptySL(BasicEdgeList),
-  if ListNotEmpty
+test(State) ->
+  AnyBasicEdge = anyEdgeInState(State, basic()),
+  if AnyBasicEdge
     -> Test_Edge = findSL(BasicEdgeList, minNrSL(BasicEdgeList)),
     Test_Edge ! {test, NodeLevel, FragName, self()};
-    true -> Test_Edge = nil(),
-      report(Test_Edge)
+    true -> report(State#state{test_Edge = nil()})
   end.
 
 
@@ -146,18 +156,40 @@ change_root(BranchEdgeList, Best_Edge_Nr, NodeLevel) ->
   end,
   BranchEdgeList.
 %------------Hilfs-Funktionen----------------------------------------------
-getMinWeightEdge(EdgeDict) ->
+getMinWeightEdgeKey(EdgeDict) ->
   [FirstKey | _] = dict:fetch_keys(EdgeDict),
   FirstEdge = dict:fetch(FirstKey, EdgeDict),
-  dict:fold(
-    fun(Edge, MinWeightEdge) -> case Edge#edge.weight < MinWeightEdge#edge.weight of
-                                  true -> Edge;
-                                  false -> MinWeightEdge
-                                end
-    end,
-    FirstEdge,
-    EdgeDict
-  ).
+  {MinKey, MinVal} = dict:fold(
+                                fun(EdgeKey, EdgeVal, MinWeightEdge) -> {MinKey, MinVal} = MinWeightEdge,
+                                                                        case EdgeVal#edge.weight < MinVal#edge.weight of
+                                                                          true -> {EdgeKey, EdgeVal};
+                                                                          false -> MinWeightEdge
+                                                                        end
+                                end,
+                                FirstEdge,
+                                EdgeDict
+                              ).
 
 getEdge(State,EdgeKey)->
   dict:fetch(EdgeKey,State#state.edgeDict).
+
+getAdjacentNodeFromTupel(State, Tupel) -> {Weight, NodeX, NodeY} = Tupel,
+                          case NodeX == State#state.nodeName of
+                            true -> NodeY;
+                            false -> NodeX
+                          end.
+getTupelFromEdgeKey(State,EdgeKey) ->NodeX = State#state.nodeName,
+                                  NodeY = EdgeKey,
+                                  Weight = fetch(EdgeKey, State#state.edgeDict)#edge.weight,
+                                  {Weight, NodeX, NodeY}.
+
+anyEdgeInState(State, Edgestate) ->
+  dict:fold(
+            fun(EdgeKey,EdgeVal,Acc) -> case EdgeVal#edge.state == Edgestate of
+                                          true -> true;
+                                          false -> Acc
+                                        end
+            end,
+            false,
+            State#state.edgeDict
+          ).
