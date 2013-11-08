@@ -104,12 +104,12 @@ response_connect(State, Level, Edge) ->
 
 
 response_initiate(State, Level, FragName, NodeState, Edge) ->
-  State#state{nodeLevel = Level},
-  State#state{fragName = FragName},
-  State#state{nodeState = NodeState},
-  State#state{edgeDict = dict:update(Edge,fun(Edge)->(Edge#edge.state = Edge)end,State#state.edgeDict)},
-  State#state{best_Edge = nil()},
-  State#state{best_Weight = State#state.infinity_weight}
+  State#state{nodeLevel = Level,
+  fragName = FragName,
+  nodeState = NodeState,
+  edgeDict = dict:update(Edge,fun(Edge)->(Edge#edge.state = Edge)end,State#state.edgeDict),
+  best_Edge = nil(),
+  best_Weight = State#state.infinity_weight}
 .
 
 
@@ -125,16 +125,30 @@ response_test(State, Level, FragName, Edge)
     true -> if getEdge(State,Edge)#edge.state == basic()
              ->   getEdge(State,Edge)#edge{state = rejected()};
             true -> undefined
-            end;
+            end,
             if State#state.test_Edge /= Edge
                -> Edge ! {reject, Edge};
             true -> test(State)
             end
+
     end.
 
 
-response_accept(State, Edge) -> State.
-response_reject(State, Edge) -> State.
+response_accept(State, Edge) ->
+  State#state{test_Edge = nil()},
+  if getEdge(State,Edge)#edge.weight < State#state.best_Weight
+    -> State#state{best_Edge = Edge,
+                   best_Weight = getEdge(State,Edge)#edge.weight}
+  end,
+  report(State).
+
+
+response_reject(State, Edge) ->
+  if getEdge(State,Edge)#edge.state == basic()
+    -> getEdge(State,Edge)#edge{state = rejected()}
+  end,
+  test(State).
+
 response_report(State, Weight, Edge) -> State.
 response_changeroot(State, Edge) -> State.
 
