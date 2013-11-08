@@ -33,6 +33,7 @@ nil() -> nil.
   test_Edge,
   in_Branch,
   find_count,
+  nodeName,
   infinity_weight}).
 
 -record(edge, {weight,
@@ -55,7 +56,8 @@ start(NodeName, Nameservice) ->
   global:register_name(NodeName, self()),
 
   {ok, EdgeList} = file:consult("node.cfg"),
-  State = #state{edgeDict = buildDict(EdgeList)},
+  State = #state{edgeDict = buildDict(EdgeList),
+  nodeName = NodeName},
   loop(State).
 %------------Loop--------------------------------------------------------
 loop(State) ->
@@ -86,28 +88,28 @@ loop(State) ->
 response_connect(State, Level, Edge) ->
   if State#state.nodeState == sleeping()
     -> wakeup(State);
-  true -> undefined
+    true -> undefined
   end,
 
-   if Level < State#state.nodeLevel
-     -> getEdge(State,Edge)#edge{state = branch()},
-          Edge ! {initiate,Level,State#state.fragName,State#state.nodeState,Edge},
-          if State#state.nodeState == find()
-            ->State#state{find_count = (State#state.find_count +1)};
-            true-> undefined
-          end;
-   getEdge(State,Edge)#edge.state == basic()
-                -> self() !  {connect, Level, Edge};
-   true -> Edge ! {initiate, (State#state.nodeLevel + 1), getEdge(State,Edge)#edge.weight, find(), Edge}
+  if Level < State#state.nodeLevel
+    -> getEdge(State, Edge)#edge{state = branch()},
+    Edge ! {initiate, Level, State#state.fragName, State#state.nodeState, Edge},
+    if State#state.nodeState == find()
+      -> State#state{find_count = (State#state.find_count + 1)};
+      true -> undefined
+    end;
+    getEdge(State, Edge)#edge.state == basic()
+      -> self() ! {connect, Level, Edge};
+    true -> Edge ! {initiate, (State#state.nodeLevel + 1), getEdge(State, Edge)#edge.weight, find(), Edge}
 
-   end.
+  end.
 
 
 response_initiate(State, Level, FragName, NodeState, Edge) ->
   State#state{nodeLevel = Level,
   fragName = FragName,
   nodeState = NodeState,
-  edgeDict = dict:update(Edge,fun(Edge)->(Edge#edge.state = Edge)end,State#state.edgeDict),
+  edgeDict = dict:update(Edge, fun(Edge) -> (Edge#edge.state = Edge) end, State#state.edgeDict),
   best_Edge = nil(),
   best_Weight = State#state.infinity_weight}
 .
@@ -115,37 +117,37 @@ response_initiate(State, Level, FragName, NodeState, Edge) ->
 
 response_test(State, Level, FragName, Edge)
   -> if State#state.nodeState == sleeping() ->
-        wakeup(State);
-        true->undefined
+  wakeup(State);
+       true -> undefined
      end,
-    if Level > State#state.nodeLevel
-        -> self() ! {test, Level, FragName, Edge};
+  if Level > State#state.nodeLevel
+    -> self() ! {test, Level, FragName, Edge};
     FragName /= State#state.fragName
-        -> Edge ! {accept, Edge};
-    true -> if getEdge(State,Edge)#edge.state == basic()
-             ->   getEdge(State,Edge)#edge{state = rejected()};
-            true -> undefined
+      -> Edge ! {accept, Edge};
+    true -> if getEdge(State, Edge)#edge.state == basic()
+      -> getEdge(State, Edge)#edge{state = rejected()};
+              true -> undefined
             end,
-            if State#state.test_Edge /= Edge
-               -> Edge ! {reject, Edge};
-            true -> test(State)
-            end
+      if State#state.test_Edge /= Edge
+        -> Edge ! {reject, Edge};
+        true -> test(State)
+      end
 
-    end.
+  end.
 
 
 response_accept(State, Edge) ->
   State#state{test_Edge = nil()},
-  if getEdge(State,Edge)#edge.weight < State#state.best_Weight
+  if getEdge(State, Edge)#edge.weight < State#state.best_Weight
     -> State#state{best_Edge = Edge,
-                   best_Weight = getEdge(State,Edge)#edge.weight}
+  best_Weight = getEdge(State, Edge)#edge.weight}
   end,
   report(State).
 
 
 response_reject(State, Edge) ->
-  if getEdge(State,Edge)#edge.state == basic()
-    -> getEdge(State,Edge)#edge{state = rejected()}
+  if getEdge(State, Edge)#edge.state == basic()
+    -> getEdge(State, Edge)#edge{state = rejected()}
   end,
   test(State).
 
@@ -154,15 +156,15 @@ response_report(State, Weight, Edge) ->
     -> State#state{find_count = State#state.find_count - 1},
     if Weight < State#state.best_Weight
       -> State#state{best_Weight = Weight,
-                     best_Edge = Edge};
+    best_Edge = Edge};
       true -> undefined,
-      report(State)
+        report(State)
     end;
-  State#state.nodeState == find()
-      ->self() ! {report, Weight, Edge};
-  Weight > State#state.best_Weight
-    -> change_root(State);
-    Weight == State#state.best_Weight and Weight == State#state.infinity_weight->
+    State#state.nodeState == find()
+      -> self() ! {report, Weight, Edge};
+    Weight > State#state.best_Weight
+      -> change_root(State);
+    Weight == State#state.best_Weight and Weight == State#state.infinity_weight ->
       halt()
 
 
@@ -172,23 +174,40 @@ response_report(State, Weight, Edge) ->
 response_changeroot(State) ->
   change_root(State).
 
-wakeup(BasicEdgeList, BranchEdgeList) ->
-  NodeState = found(),
-  NodeLevel = 0,
-  Find_count = 0,
-  AKMG = findSL(BasicEdgeList, minNrSL(BasicEdgeList)),
-  NewBasicEdgeList = popSL(BasicEdgeList),
-  NewBranchEdgeList = pushSL(BranchEdgeList, AKMG),
-  {NodeState, NodeLevel, NewBasicEdgeList, NewBranchEdgeList, Find_count}.
+wakeup(State) ->
+
+  {EdgeKey, EdgeVal} = getMinWeightEdgeKey(State#state.edgeDict),
 
 
-test(NodeLevel, FragName, BasicEdgeList) ->
-  ListNotEmpty = notemptySL(BasicEdgeList),
-  if ListNotEmpty
+  NewDict = dict:update(EdgeKey,
+
+    fun(Edge) -> Edge#edge{state = branch()} end,
+
+    State#state.edgeDict
+
+  ),
+
+  NewState = State#state{
+
+    edgeDict = NewDict,
+
+    nodeLevel = 0,
+
+    nodeState = found(),
+
+    find_count = 0
+  },
+  EdgeKey ! {connect, NewState#state.nodeLevel, getTupelFromEdgeKey(NewState, EdgeKey)},
+  NewState
+.
+test(State) ->
+
+  AnyBasicEdge = anyEdgeInState(State, basic()),
+
+  if AnyBasicEdge
     -> Test_Edge = findSL(BasicEdgeList, minNrSL(BasicEdgeList)),
     Test_Edge ! {test, NodeLevel, FragName, self()};
-    true -> Test_Edge = nil(),
-      report(Test_Edge)
+    true -> report(State#state{test_Edge = nil()})
   end.
 
 
@@ -209,18 +228,67 @@ change_root(BranchEdgeList, Best_Edge_Nr, NodeLevel) ->
   end,
   BranchEdgeList.
 %------------Hilfs-Funktionen----------------------------------------------
-getMinWeightEdge(EdgeDict) ->
+getMinWeightEdgeKey(EdgeDict) ->
   [FirstKey | _] = dict:fetch_keys(EdgeDict),
   FirstEdge = dict:fetch(FirstKey, EdgeDict),
-  dict:fold(
-    fun(Edge, MinWeightEdge) -> case Edge#edge.weight < MinWeightEdge#edge.weight of
-                                  true -> Edge;
-                                  false -> MinWeightEdge
-                                end
+  {MinKey, MinVal} = dict:fold(
+
+    fun(EdgeKey, EdgeVal, MinWeightEdge) -> {MinKey, MinVal} = MinWeightEdge,
+
+      case EdgeVal#edge.weight < MinVal#edge.weight of
+
+        true -> {EdgeKey, EdgeVal};
+
+        false -> MinWeightEdge
+
+      end
+
     end,
+
     FirstEdge,
+
     EdgeDict
+
   ).
 
-getEdge(State,EdgeKey)->
-  dict:fetch(EdgeKey,State#state.edgeDict).
+getEdge(State, EdgeKey) ->
+  dict:fetch(EdgeKey, State#state.edgeDict).
+
+
+
+getAdjacentNodeFromTupel(State, Tupel) -> {Weight, NodeX, NodeY} = Tupel,
+
+  case NodeX == State#state.nodeName of
+
+    true -> NodeY;
+
+    false -> NodeX
+
+  end.
+
+getTupelFromEdgeKey(State, EdgeKey) -> NodeX = State#state.nodeName,
+
+  NodeY = EdgeKey,
+
+  Weight = fetch(EdgeKey, State#state.edgeDict)#edge.weight,
+
+  {Weight, NodeX, NodeY}.
+
+
+
+anyEdgeInState(State, Edgestate) ->
+
+  dict:fold(
+
+    fun(EdgeKey, EdgeVal, Acc) -> case EdgeVal#edge.state == Edgestate of
+         true -> true;
+         false -> Acc
+       end
+
+    end,
+
+    false,
+
+    State#state.edgeDict
+
+  ).
