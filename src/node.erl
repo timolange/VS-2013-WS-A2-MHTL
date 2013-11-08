@@ -86,7 +86,7 @@ loop(State) ->
 response_connect(State, Level, Edge) ->
   if State#state.nodeState == sleeping()
     -> wakeup(State);
-  true -> false
+  true -> undefined
   end,
 
    if Level < State#state.nodeLevel
@@ -94,7 +94,7 @@ response_connect(State, Level, Edge) ->
           Edge ! {initiate,Level,State#state.fragName,State#state.nodeState,Edge},
           if State#state.nodeState == find()
             ->State#state{find_count = (State#state.find_count +1)};
-            true-> false
+            true-> undefined
           end;
    getEdge(State,Edge)#edge.state == basic()
                 -> self() !  {connect, Level, Edge};
@@ -116,7 +116,7 @@ response_initiate(State, Level, FragName, NodeState, Edge) ->
 response_test(State, Level, FragName, Edge)
   -> if State#state.nodeState == sleeping() ->
         wakeup(State);
-        true->false
+        true->undefined
      end,
     if Level > State#state.nodeLevel
         -> self() ! {test, Level, FragName, Edge};
@@ -124,7 +124,7 @@ response_test(State, Level, FragName, Edge)
         -> Edge ! {accept, Edge};
     true -> if getEdge(State,Edge)#edge.state == basic()
              ->   getEdge(State,Edge)#edge{state = rejected()};
-            true -> false
+            true -> undefined
             end;
             if State#state.test_Edge /= Edge
                -> Edge ! {reject, Edge};
