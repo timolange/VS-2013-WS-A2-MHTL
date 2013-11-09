@@ -175,7 +175,7 @@ response_changeroot(State) ->
   change_root(State).
 
 wakeup(State) ->
-  {EdgeKey, EdgeVal} = getMinWeightEdgeKey(State#state.edgeDict),
+  EdgeKey = getMinWeightEdgeKey(State#state.edgeDict),
   NewDict = dict:update(EdgeKey,
     fun(Edge) -> Edge#edge{state = branch()} end,
     State#state.edgeDict
@@ -187,8 +187,8 @@ wakeup(State) ->
     find_count = 0
   },
   EdgeKey ! {connect, NewState#state.nodeLevel, getTupelFromEdgeKey(NewState, EdgeKey)},
-  NewState
-.
+  NewState.
+
 test(State) ->
 
   AnyBasicEdge = anyEdgeInState(State, basic()),
@@ -222,14 +222,15 @@ getMinWeightEdgeKey(EdgeDict) ->
   FirstEdge = dict:fetch(FirstKey, EdgeDict),
   {MinKey, MinVal} = dict:fold(
     fun(EdgeKey, EdgeVal, MinWeightEdge) -> {MinKey, MinVal} = MinWeightEdge,
-      case EdgeVal#edge.weight < MinVal#edge.weight of
-        true -> {EdgeKey, EdgeVal};
-        false -> MinWeightEdge
-      end
+                                            case EdgeVal#edge.weight < MinVal#edge.weight of
+                                              true -> {EdgeKey, EdgeVal};
+                                              false -> MinWeightEdge
+                                            end
     end,
     FirstEdge,
     EdgeDict
-  ).
+  ),
+  MinKey.
 
 getEdge(State, EdgeKey) ->
   dict:fetch(EdgeKey, State#state.edgeDict).
