@@ -158,12 +158,14 @@ response_test(State, Level, FragName, Edge) ->
 
 
 response_accept(State, Edge) ->
-  State#state{test_Edge = nil()},
-  if getEdge(State, Edge)#edge.weight < State#state.best_Weight
-    -> State#state{best_Edge = Edge,
-  best_Weight = getEdge(State, Edge)#edge.weight}
-  end,
-  report(State).
+  {NewBestEdge, NewBestWeight} = case getEdge(State, Edge)#edge.weight < State#state.best_Weight of
+                                   true -> {Edge, getEdge(State, Edge)#edge.weight};
+                                   false -> {State#state.best_Edge, State#state.best_Weight}
+                                 end,
+  NewState = State#state{test_Edge = nil(),
+                         best_Edge = NewBestEdge,
+                         best_Weight = NewBestWeight},
+  report(NewState).
 
 
 response_reject(State, Edge) ->
