@@ -64,24 +64,31 @@ loop(State) ->
   receive
     {initiate, Level, FragName, NodeState, Edge} ->
       NewState = response_initiate(State, Level, FragName, NodeState, getEdgeKeyFromTupel(State, Edge)),
+      logState(NewState, "initiate"),
       loop(NewState);
     {test, Level, FragName, Edge} ->
       NewState = response_test(State, Level, FragName, getEdgeKeyFromTupel(State, Edge)),
+      logState(NewState, "test"),
       loop(NewState);
     {accept, Edge} ->
       NewState = response_accept(State, getEdgeKeyFromTupel(State, Edge)),
+      logState(NewState, "accept"),
       loop(NewState);
     {reject, Edge} ->
       NewState = response_reject(State, getEdgeKeyFromTupel(State, Edge)),
+      logState(NewState, "reject"),
       loop(NewState);
     {report, Weight, Edge} ->
       NewState = response_report(State, Weight, getEdgeKeyFromTupel(State, Edge)),
+      logState(NewState, "report"),
       loop(NewState);
     {changeroot, _Edge} ->
       NewState = response_changeroot(State),
+      logState(NewState, "changeroot"),
       loop(NewState);
     {connect, Level, Edge} ->
       NewState = response_connect(State, Level, getEdgeKeyFromTupel(State, Edge)),
+      logState(NewState, "initiate"),
       loop(NewState)
   end.
 %------------Algorithmus-Funktionen----------------------------------------------
@@ -307,3 +314,30 @@ anyEdgeInState(State, Edgestate) ->
     false,
     State#state.edgeDict
   ).
+
+logState(State, Msg) ->
+  logging("Node.log", io_lib:format("~p erhalten, neuer Status:
+                                     nodeState ~p,
+                                     nodeLevel ~p,
+                                     fragName ~p,
+                                     edgeDict ~p,
+                                     best_Weight ~p,
+                                     best_Edge ~p,
+                                     test_Edge ~p,
+                                     in_Branch ~p,
+                                     find_count ~p,
+                                     nodeName ~p,
+                                     infinity_weight ~p~n",
+                                    [Msg,
+                                     State#state.nodeState,
+                                     State#state.nodeLevel,
+                                     State#state.fragName,
+                                     State#state.edgeDict,
+                                     State#state.best_Weight,
+                                     State#state.best_Edge,
+                                     State#state.test_Edge,
+                                     State#state.in_Branch,
+                                     State#state.find_count,
+                                     State#state.nodeName,
+                                     State#state.infinity_weight
+                                    ])).
