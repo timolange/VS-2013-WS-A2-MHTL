@@ -170,9 +170,10 @@ response_accept(State, Edge) ->
 
 response_reject(State, Edge) ->
   if getEdge(State, Edge)#edge.state == basic()
-    -> getEdge(State, Edge)#edge{state = rejected()}
-  end,
-  test(State).
+    -> NewState = State#state{edgeDict = updateEdgeState(State, Edge, rejected())},
+       test(NewState);
+    true -> State
+  end.
 
 response_report(State, Weight, Edge) ->
   if Edge /= State#state.in_Branch
