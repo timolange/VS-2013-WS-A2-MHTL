@@ -189,7 +189,7 @@ test(State) ->
   AnyBasicEdge = anyEdgeInState(State, basic()),
 
   if AnyBasicEdge
-    -> BasicEdges = dict:filter(fun(Key,Val) -> Val#edge.state == basic() end,State#state.edgeDict),
+    -> BasicEdges = dict:filter(fun(_Key,Val) -> Val#edge.state == basic() end,State#state.edgeDict),
        Test_Edge = getMinWeightEdgeKey(BasicEdges),
        Test_Edge ! {test, State#state.nodeLevel, State#state.fragName, getTupelFromEdgeKey(State, Test_Edge)};
        NewState = State#state{test_Edge = Test_Edge};
@@ -201,7 +201,7 @@ test(State) ->
 report(State) ->
   if State#state.find_count == 0 and State#state.test_Edge == nil()
     -> NewState = State#state{nodeState = found()},
-       State#state.in_Branch ! {report, NewState#state.best_Weight, getTupelFromEdgeKey(State#state.in_Branch)};
+       State#state.in_Branch ! {report, NewState#state.best_Weight, getTupelFromEdgeKey(State, State#state.in_Branch)};
     true -> NewState = State
   end,
   NewState.
@@ -221,9 +221,9 @@ change_root(State) ->
 getMinWeightEdgeKey(EdgeDict) ->
   [FirstKey | _] = dict:fetch_keys(EdgeDict),
   FirstEdge = dict:fetch(FirstKey, EdgeDict),
-  {MinKey, MinVal} = dict:fold(
-    fun(EdgeKey, EdgeVal, MinWeightEdge) -> {MinKey, MinVal} = MinWeightEdge,
-                                            case EdgeVal#edge.weight < MinVal#edge.weight of
+  {MinKey, _MinVal} = dict:fold(
+    fun(EdgeKey, EdgeVal, MinWeightEdge) -> {_MinEdgeKey, MinEdgeVal} = MinWeightEdge,
+                                            case EdgeVal#edge.weight < MinEdgeVal#edge.weight of
                                               true -> {EdgeKey, EdgeVal};
                                               false -> MinWeightEdge
                                             end
@@ -244,7 +244,7 @@ updateEdgeState(State, EdgeKey, NewEdgeState) ->
   NewDict.
 
 getAdjacentNodeFromTupel(State, Tupel) ->
-  {Weight, NodeX, NodeY} = Tupel,
+  {_Weight, NodeX, NodeY} = Tupel,
   case NodeX == State#state.nodeName of
     true -> NodeY;
     false -> NodeX
@@ -253,12 +253,12 @@ getAdjacentNodeFromTupel(State, Tupel) ->
 getTupelFromEdgeKey(State, EdgeKey) ->
   NodeX = State#state.nodeName,
   NodeY = EdgeKey,
-  Weight = fetch(EdgeKey, State#state.edgeDict)#edge.weight,
+  Weight = dict:fetch(EdgeKey, State#state.edgeDict)#edge.weight,
   {Weight, NodeX, NodeY}.
 
 anyEdgeInState(State, Edgestate) ->
   dict:fold(
-    fun(EdgeKey, EdgeVal, Acc) -> case EdgeVal#edge.state == Edgestate of
+    fun(_EdgeKey, EdgeVal, Acc) -> case EdgeVal#edge.state == Edgestate of
                                      true -> true;
                                      false -> Acc
                                    end
