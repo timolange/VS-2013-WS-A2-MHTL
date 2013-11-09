@@ -38,7 +38,7 @@ nil() -> nil.
 
 -record(edge, {weight,
                state = basic()}).
-
+% der globale nodeName ist gleichzeitig der Key jeder Edge, nachrichten werden also an den key gesendet
 buildDict(EdgeList) ->
   lists:foldl(
     fun(Edge, Acc) -> {Weight, Nodename} = Edge,
@@ -63,25 +63,25 @@ start(NodeName, Nameservice) ->
 loop(State) ->
   receive
     {initiate, Level, FragName, NodeState, Edge} ->
-      NewState = response_initiate(State, Level, FragName, NodeState, Edge),
+      NewState = response_initiate(State, Level, FragName, NodeState, getEdgeKeyFromTupel(State, Edge)),
       loop(NewState);
     {test, Level, FragName, Edge} ->
-      NewState = response_test(State, Level, FragName, Edge),
+      NewState = response_test(State, Level, FragName, getEdgeKeyFromTupel(State, Edge)),
       loop(NewState);
     {accept, Edge} ->
-      NewState = response_accept(State, Edge),
+      NewState = response_accept(State, getEdgeKeyFromTupel(State, Edge)),
       loop(NewState);
     {reject, Edge} ->
-      NewState = response_reject(State, Edge),
+      NewState = response_reject(State, getEdgeKeyFromTupel(State, Edge)),
       loop(NewState);
     {report, Weight, Edge} ->
-      NewState = response_report(State, Weight, Edge),
+      NewState = response_report(State, Weight, getEdgeKeyFromTupel(State, Edge)),
       loop(NewState);
     {changeroot, Edge} ->
       NewState = response_changeroot(State),
       loop(NewState);
     {connect, Level, Edge} ->
-      NewState = response_connect(State, Level, Edge),
+      NewState = response_connect(State, Level, getEdgeKeyFromTupel(State, Edge)),
       loop(NewState)
   end.
 %------------Algorithmus-Funktionen----------------------------------------------
@@ -175,14 +175,14 @@ response_changeroot(State) ->
   change_root(State).
 
 wakeup(State) ->
-  EdgeKey = getMinWeightEdgeKey(State#state.edgeDict),
+  MinWeightEdgeKey = getMinWeightEdgeKey(State#state.edgeDict),
   NewState = State#state{
-    edgeDict = updateEdgeState(State, EdgeKey, branch()),
+    edgeDict = updateEdgeState(State, MinWeightEdgeKey, branch()),
     nodeLevel = 0,
     nodeState = found(),
     find_count = 0
   },
-  EdgeKey ! {connect, NewState#state.nodeLevel, getTupelFromEdgeKey(NewState, EdgeKey)},
+  MinWeightEdgeKey ! {connect, NewState#state.nodeLevel, getTupelFromEdgeKey(NewState, MinWeightEdgeKey)},
   NewState.
 
 test(State) ->
@@ -243,7 +243,9 @@ updateEdgeState(State, EdgeKey, NewEdgeState) ->
   ),
   NewDict.
 
-getAdjacentNodeFromTupel(State, Tupel) ->
+%gibt den key der Edge zurueck,
+%jedes tupel muss den globalen namen des sendenden knoten enthalten und des empfangenen(unser nodename), da alle knoten nur ihre nachbarn kennen
+getEdgeKeyFromTupel(State, Tupel) ->
   {_Weight, NodeX, NodeY} = Tupel,
   case NodeX == State#state.nodeName of
     true -> NodeY;
