@@ -62,6 +62,10 @@ start(NodeName, Nameservice) ->
 %------------Loop--------------------------------------------------------
 loop(State) ->
   receive
+    {wakeup} ->
+      NewState = wakeup(State),
+      logState(NewState, "wakeup"),
+      loop(NewState);
     {initiate, Level, FragName, NodeState, Edge} ->
       NewState = response_initiate(State, Level, FragName, NodeState, getEdgeKeyFromTupel(State, Edge)),
       logState(NewState, "initiate"),
