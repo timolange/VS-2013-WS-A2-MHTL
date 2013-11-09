@@ -25,24 +25,24 @@ rejected() -> rejected().
 nil() -> nil.
 %------------Datenstruktur----------------------------------------------
 -record(state, {nodeState = sleeping(),
-  nodeLevel,
-  fragName,
-  edgeDict,
-  best_Weight,
-  best_Edge,
-  test_Edge,
-  in_Branch,
-  find_count,
-  nodeName,
-  infinity_weight}).
+                nodeLevel,
+                fragName,
+                edgeDict,
+                best_Weight,
+                best_Edge,
+                test_Edge,
+                in_Branch,
+                find_count,
+                nodeName,
+                infinity_weight}).
 
 -record(edge, {weight,
-  state = basic()}).
+               state = basic()}).
 
 buildDict(EdgeList) ->
   lists:foldl(
     fun(Edge, Acc) -> {Weight, Nodename} = Edge,
-      dict:store(Nodename, #edge{weight = Weight}, Acc)
+                      dict:store(Nodename, #edge{weight = Weight}, Acc)
     end,
     dict:new(),
     EdgeList
@@ -175,26 +175,15 @@ response_changeroot(State) ->
   change_root(State).
 
 wakeup(State) ->
-
   {EdgeKey, EdgeVal} = getMinWeightEdgeKey(State#state.edgeDict),
-
-
   NewDict = dict:update(EdgeKey,
-
     fun(Edge) -> Edge#edge{state = branch()} end,
-
     State#state.edgeDict
-
   ),
-
   NewState = State#state{
-
     edgeDict = NewDict,
-
     nodeLevel = 0,
-
     nodeState = found(),
-
     find_count = 0
   },
   EdgeKey ! {connect, NewState#state.nodeLevel, getTupelFromEdgeKey(NewState, EdgeKey)},
@@ -232,63 +221,39 @@ getMinWeightEdgeKey(EdgeDict) ->
   [FirstKey | _] = dict:fetch_keys(EdgeDict),
   FirstEdge = dict:fetch(FirstKey, EdgeDict),
   {MinKey, MinVal} = dict:fold(
-
     fun(EdgeKey, EdgeVal, MinWeightEdge) -> {MinKey, MinVal} = MinWeightEdge,
-
       case EdgeVal#edge.weight < MinVal#edge.weight of
-
         true -> {EdgeKey, EdgeVal};
-
         false -> MinWeightEdge
-
       end
-
     end,
-
     FirstEdge,
-
     EdgeDict
-
   ).
 
 getEdge(State, EdgeKey) ->
   dict:fetch(EdgeKey, State#state.edgeDict).
 
-
-
-getAdjacentNodeFromTupel(State, Tupel) -> {Weight, NodeX, NodeY} = Tupel,
-
+getAdjacentNodeFromTupel(State, Tupel) ->
+  {Weight, NodeX, NodeY} = Tupel,
   case NodeX == State#state.nodeName of
-
     true -> NodeY;
-
     false -> NodeX
-
   end.
 
-getTupelFromEdgeKey(State, EdgeKey) -> NodeX = State#state.nodeName,
-
+getTupelFromEdgeKey(State, EdgeKey) ->
+  NodeX = State#state.nodeName,
   NodeY = EdgeKey,
-
   Weight = fetch(EdgeKey, State#state.edgeDict)#edge.weight,
-
   {Weight, NodeX, NodeY}.
 
-
-
 anyEdgeInState(State, Edgestate) ->
-
   dict:fold(
-
     fun(EdgeKey, EdgeVal, Acc) -> case EdgeVal#edge.state == Edgestate of
-         true -> true;
-         false -> Acc
-       end
-
+                                     true -> true;
+                                     false -> Acc
+                                   end
     end,
-
     false,
-
     State#state.edgeDict
-
   ).
