@@ -86,21 +86,22 @@ loop(State) ->
   end.
 %------------Algorithmus-Funktionen----------------------------------------------
 response_connect(State, Level, Edge) ->
-  if State#state.nodeState == sleeping()
-    -> NewState = wakeup(State);
-    true -> NewState = State
+  NewState = if State#state.nodeState == sleeping()
+    -> wakeup(State);
+    true -> State
   end,
 
   if Level < NewState#state.nodeLevel
-    -> SecondNewState = updateEdgeState(NewState, Edge, branch()),
-       Edge ! {initiate, NewState#state.nodeLevel, NewState#state.fragName, NewState#state.nodeState, Edge},
-       if SecondNewState#state.nodeState == find()
-         -> ThirdNewState = SecondNewState#state{find_count = (NewState#state.find_count + 1)};
-         true -> SecondNewState
-       end;
-    getEdge(NewState, Edge)#edge.state == basic()
-      -> self() ! {connect, Level, Edge};
-    true -> Edge ! {initiate, (NewState#state.nodeLevel + 1), getEdge(NewState, Edge)#edge.weight, find(), Edge}
+      -> SecondNewState = NewState#state{edgeDict = updateEdgeState(NewState, Edge, branch())},
+         Edge ! {initiate, SecondNewState#state.nodeLevel, SecondNewState#state.fragName, SecondNewState#state.nodeState, getTupelFromEdgeKey(SecondNewState, Edge)},
+         if SecondNewState#state.nodeState == find()
+           -> SecondNewState#state{find_count = SecondNewState#state.find_count + 1};
+           true -> SecondNewState
+         end;
+     getEdge(NewState, Edge)#edge.state == basic()
+       -> self() ! {connect, Level, getTupelFromEdgeKey(NewState, Edge)};
+     true -> Edge ! {initiate, (NewState#state.nodeLevel + 1), getEdge(NewState, Edge)#edge.weight, find(), getTupelFromEdgeKey(NewState, Edge)},
+             NewState
 
   end.
 
