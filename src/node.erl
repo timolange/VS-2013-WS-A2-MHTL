@@ -202,13 +202,13 @@ test(State) ->
   NewState.
 
 
-report(Find_count, Test_Edge, Best_Weight, In_Branch, NodeState) ->
-  if Find_count == 0 and Test_Edge == nil()
-    -> NewNodeState = found(),
-    In_Branch ! {report, Best_Weight, self()};
-    true -> NewNodeState = NodeState
+report(State) ->
+  if State#state.find_count == 0 and State#state.test_Edge == nil()
+    -> NewState = State#state{nodeState = found()},
+       State#state.in_Branch ! {report, NewState#state.best_Weight, getTupelFromEdgeKey(State#state.in_Branch)};
+    true -> NewNodeState = NewState
   end,
-  NewNodeState.
+  NewState.
 
 change_root(BranchEdgeList, Best_Edge_Nr, NodeLevel) ->
   BestEdge = findSL(BranchEdgeList, Best_Edge_Nr),
