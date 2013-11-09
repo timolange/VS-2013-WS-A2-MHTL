@@ -9,7 +9,7 @@
 -module(node).
 -import(werkzeug, [to_String/1, timeMilliSecond/0, logging/2, get_config_value/2, reset_timer/3,
 pushSL/2, popSL/1, popfiSL/1, findSL/2, findneSL/2, lengthSL/1, minNrSL/1, maxNrSL/1, emptySL/0, notemptySL/1, delete_last/1, shuffle/1]).
--author("timey", "Michael").
+-author("Timo, Michael").
 
 %% API
 -export([start/2]).
@@ -77,7 +77,7 @@ loop(State) ->
     {report, Weight, Edge} ->
       NewState = response_report(State, Weight, getEdgeKeyFromTupel(State, Edge)),
       loop(NewState);
-    {changeroot, Edge} ->
+    {changeroot, _Edge} ->
       NewState = response_changeroot(State),
       loop(NewState);
     {connect, Level, Edge} ->
@@ -86,21 +86,24 @@ loop(State) ->
   end.
 %------------Algorithmus-Funktionen----------------------------------------------
 response_connect(State, Level, Edge) ->
-  NewState = if State#state.nodeState == sleeping()
+  Sleeping = sleeping(),
+  Find = find(),
+  Basic = basic(),
+  NewState = if State#state.nodeState == Sleeping
     -> wakeup(State);
     true -> State
   end,
-
+  EdgeVal = getEdge(NewState, Edge),
   if Level < NewState#state.nodeLevel
       -> SecondNewState = NewState#state{edgeDict = updateEdgeState(NewState, Edge, branch())},
          Edge ! {initiate, SecondNewState#state.nodeLevel, SecondNewState#state.fragName, SecondNewState#state.nodeState, getTupelFromEdgeKey(SecondNewState, Edge)},
-         if SecondNewState#state.nodeState == find()
+         if SecondNewState#state.nodeState == Find
            -> SecondNewState#state{find_count = SecondNewState#state.find_count + 1};
            true -> SecondNewState
          end;
-     getEdge(NewState, Edge)#edge.state == basic()
+     EdgeVal#edge.state == Basic
        -> self() ! {connect, Level, getTupelFromEdgeKey(NewState, Edge)};
-     true -> Edge ! {initiate, (NewState#state.nodeLevel + 1), getEdge(NewState, Edge)#edge.weight, find(), getTupelFromEdgeKey(NewState, Edge)},
+     true -> Edge ! {initiate, (NewState#state.nodeLevel + 1), EdgeVal#edge.weight, find(), getTupelFromEdgeKey(NewState, Edge)},
              NewState
 
   end.
@@ -127,24 +130,27 @@ response_initiate(State, Level, FragName, NodeState, Edge) ->
                                         true -> NewFindCount;
                                         false -> State#state.find_count
                                       end},
-  if NodeState == find()
+  Find = find(),
+  if NodeState == Find
    -> test(NewState);
    true -> NewState
 end.
 
 
 response_test(State, Level, FragName, Edge) ->
-  NewState = if State#state.nodeState == sleeping()
+  Sleeping = sleeping(),
+  NewState = if State#state.nodeState == Sleeping
                 ->wakeup(State);
                 true -> State
              end,
+  EdgeVal = getEdge(NewState, Edge),
   case Level > NewState#state.nodeLevel of
     true -> self() ! {test, Level, FragName, getTupelFromEdgeKey(NewState, Edge)},
             NewState;
     false -> case FragName /= NewState#state.fragName of
                true -> Edge ! {accept,getTupelFromEdgeKey(NewState, Edge)},
                        NewState;
-               false -> SecondNewState = case getEdge(NewState, Edge)#edge.state == basic() of
+               false -> SecondNewState = case EdgeVal#edge.state == basic() of
                                            true -> State#state{edgeDict = updateEdgeState(NewState, Edge, rejected())};
                                            false -> NewState
                                          end,
@@ -159,8 +165,9 @@ response_test(State, Level, FragName, Edge) ->
 
 
 response_accept(State, Edge) ->
-  {NewBestEdge, NewBestWeight} = case getEdge(State, Edge)#edge.weight < State#state.best_Weight of
-                                   true -> {Edge, getEdge(State, Edge)#edge.weight};
+  EdgeVal = getEdge(State, Edge),
+  {NewBestEdge, NewBestWeight} = case EdgeVal#edge.weight < State#state.best_Weight of
+                                   true -> {Edge, EdgeVal#edge.weight};
                                    false -> {State#state.best_Edge, State#state.best_Weight}
                                  end,
   NewState = State#state{test_Edge = nil(),
@@ -170,27 +177,31 @@ response_accept(State, Edge) ->
 
 
 response_reject(State, Edge) ->
-  NewState = if getEdge(State, Edge)#edge.state == basic()
+  Basic = basic(),
+  EdgeVal = getEdge(State, Edge),
+  NewState = if EdgeVal#edge.state == Basic
                -> State#state{edgeDict = updateEdgeState(State, Edge, rejected())};
                true -> State
              end,
   test(NewState).
 
 response_report(State, Weight, Edge) ->
+  Find = find(),
+  EdgeVal = getEdge(State, Edge),
   if Edge /= State#state.in_Branch
-      -> {NewBestEdge, NewBestWeight} = case getEdge(State, Edge)#edge.weight < State#state.best_Weight of
-                                          true -> {Edge, getEdge(State, Edge)#edge.weight};
+      -> {NewBestEdge, NewBestWeight} = case EdgeVal#edge.weight < State#state.best_Weight of
+                                          true -> {Edge, EdgeVal#edge.weight};
                                           false -> {State#state.best_Edge, State#state.best_Weight}
                                         end,
          NewState = State#state{find_count = State#state.find_count - 1,
                                 best_Edge = NewBestEdge,
                                 best_Weight = NewBestWeight},
          report(NewState);
-    State#state.nodeState == find()
+    State#state.nodeState == Find
       -> self() ! {report, Weight, getTupelFromEdgeKey(State, Edge)};
     Weight > State#state.best_Weight
       -> change_root(State);
-    Weight == State#state.best_Weight and Weight == State#state.infinity_weight ->
+    (Weight == State#state.best_Weight) and (Weight == State#state.infinity_weight) ->
       halt()
   end.
 
@@ -215,7 +226,7 @@ test(State) ->
   if AnyBasicEdge
     -> BasicEdges = dict:filter(fun(_Key,Val) -> Val#edge.state == basic() end,State#state.edgeDict),
        Test_Edge = getMinWeightEdgeKey(BasicEdges),
-       Test_Edge ! {test, State#state.nodeLevel, State#state.fragName, getTupelFromEdgeKey(State, Test_Edge)};
+       Test_Edge ! {test, State#state.nodeLevel, State#state.fragName, getTupelFromEdgeKey(State, Test_Edge)},
        NewState = State#state{test_Edge = Test_Edge};
     true ->NewState = report(State#state{test_Edge = nil()})
   end,
@@ -223,7 +234,8 @@ test(State) ->
 
 
 report(State) ->
-  if State#state.find_count == 0 and State#state.test_Edge == nil()
+  Nil = nil(),
+  if (State#state.find_count == 0) and (State#state.test_Edge == Nil)
     -> NewState = State#state{nodeState = found()},
        State#state.in_Branch ! {report, NewState#state.best_Weight, getTupelFromEdgeKey(State, State#state.in_Branch)};
     true -> NewState = State
@@ -231,10 +243,12 @@ report(State) ->
   NewState.
 
 change_root(State) ->
+  Branch = branch(),
   BestEdgeKey = State#state.best_Edge,
-  BestEdgeState = dict:fetch(BestEdgeKey,State#state.edgeDict)#edge.state,
+  BestEdgeVal = getEdge(State, BestEdgeKey),
+  BestEdgeState = BestEdgeVal#edge.state,
   Tupel = getTupelFromEdgeKey(State, BestEdgeKey),
-  if BestEdgeState == branch()
+  if BestEdgeState == Branch
     -> BestEdgeKey ! {changeroot, Tupel},
        NewState = State;
     true -> BestEdgeKey ! {connect, State#state.nodeLevel, Tupel},
@@ -279,7 +293,8 @@ getEdgeKeyFromTupel(State, Tupel) ->
 getTupelFromEdgeKey(State, EdgeKey) ->
   NodeX = State#state.nodeName,
   NodeY = EdgeKey,
-  Weight = dict:fetch(EdgeKey, State#state.edgeDict)#edge.weight,
+  EdgeVal = getEdge(State, EdgeKey),
+  Weight = EdgeVal#edge.weight,
   {Weight, NodeX, NodeY}.
 
 anyEdgeInState(State, Edgestate) ->
