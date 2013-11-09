@@ -190,14 +190,16 @@ wakeup(State) ->
   NewState.
 
 test(State) ->
-
   AnyBasicEdge = anyEdgeInState(State, basic()),
 
   if AnyBasicEdge
-    -> Test_Edge = findSL(BasicEdgeList, minNrSL(BasicEdgeList)),
-    Test_Edge ! {test, NodeLevel, FragName, self()};
-    true -> report(State#state{test_Edge = nil()})
-  end.
+    -> BasicEdges = dict:filter(fun(Key,Val) -> Val#edge.state == basic() end,State#state.edgeDict),
+       Test_Edge = getMinWeightEdgeKey(BasicEdges),
+       Test_Edge ! {test, State#state.nodeLevel, State#state.fragName, getTupelFromEdgeKey(State, Test_Edge)};
+       NewState = State#state{test_Edge = Test_Edge};
+    true ->NewState = report(State#state{test_Edge = nil()})
+  end,
+  NewState.
 
 
 report(Find_count, Test_Edge, Best_Weight, In_Branch, NodeState) ->
