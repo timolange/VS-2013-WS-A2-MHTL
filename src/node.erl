@@ -50,8 +50,8 @@ buildDict(EdgeList) ->
 %------------initialisieren----------------------------------------------
 start(NodeName, Nameservice) ->
 
-  %beim globalen namensservice registrieren
-  global:whereis_name(Nameservice),
+  %verbindung mit globalen namensservice herstellen
+  net_adm:ping(Nameservice),
   %Nodename global verfuegbar machen
   global:register_name(NodeName, self()),
 
