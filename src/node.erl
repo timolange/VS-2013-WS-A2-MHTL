@@ -132,23 +132,27 @@ response_initiate(State, Level, FragName, NodeState, Edge) ->
 end.
 
 
-response_test(State, Level, FragName, Edge)
-  -> if State#state.nodeState == sleeping() ->
-  wakeup(State);
-       true -> undefined
-     end,
-  if Level > State#state.nodeLevel
-    -> self() ! {test, Level, FragName, Edge};
-    FragName /= State#state.fragName
-      -> Edge ! {accept, Edge};
-    true -> if getEdge(State, Edge)#edge.state == basic()
-      -> getEdge(State, Edge)#edge{state = rejected()};
-              true -> undefined
-            end,
-      if State#state.test_Edge /= Edge
-        -> Edge ! {reject, Edge};
-        true -> test(State)
-      end
+response_test(State, Level, FragName, Edge) ->
+  NewState = if State#state.nodeState == sleeping()
+                ->wakeup(State);
+                true -> State
+             end,
+  case Level > NewState#state.nodeLevel of
+    true -> self() ! {test, Level, FragName, getTupelFromEdgeKey(NewState, Edge)},
+            NewState;
+    false -> case FragName /= NewState#state.fragName of
+               true -> Edge ! {accept,getTupelFromEdgeKey(NewState, Edge)},
+                       NewState;
+               false -> SecondNewState = case getEdge(NewState, Edge)#edge.state == basic() of
+                                           true -> State#state{edgeDict = updateEdgeState(NewState, Edge, rejected())};
+                                           false -> NewState
+                                         end,
+                        case SecondNewState#state.test_Edge /= Edge of
+                          true -> Edge ! {reject,getTupelFromEdgeKey(State, Edge)},
+                                  SecondNewState;
+                          false -> test(SecondNewState)
+                        end
+             end
 
   end.
 
