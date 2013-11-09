@@ -176,12 +176,8 @@ response_changeroot(State) ->
 
 wakeup(State) ->
   EdgeKey = getMinWeightEdgeKey(State#state.edgeDict),
-  NewDict = dict:update(EdgeKey,
-    fun(Edge) -> Edge#edge{state = branch()} end,
-    State#state.edgeDict
-  ),
   NewState = State#state{
-    edgeDict = NewDict,
+    edgeDict = updateEdgeState(State, EdgeKey, branch()),
     nodeLevel = 0,
     nodeState = found(),
     find_count = 0
@@ -206,18 +202,21 @@ report(State) ->
   if State#state.find_count == 0 and State#state.test_Edge == nil()
     -> NewState = State#state{nodeState = found()},
        State#state.in_Branch ! {report, NewState#state.best_Weight, getTupelFromEdgeKey(State#state.in_Branch)};
-    true -> NewNodeState = NewState
+    true -> NewState = State
   end,
   NewState.
 
-change_root(BranchEdgeList, Best_Edge_Nr, NodeLevel) ->
-  BestEdge = findSL(BranchEdgeList, Best_Edge_Nr),
-  if BestEdge /= {-1, nok}
-    -> BestEdge ! {changeroot, self()};
-    true -> BestEdge ! {connect, NodeLevel, self()},
-      pushSL(BranchEdgeList, {Best_Edge_Nr, BestEdge})
+change_root(State) ->
+  BestEdgeKey = State#state.best_Edge,
+  BestEdgeState = dict:fetch(BestEdgeKey,State#state.edgeDict)#edge.state,
+  Tupel = getTupelFromEdgeKey(State, BestEdgeKey),
+  if BestEdgeState == branch()
+    -> BestEdgeKey ! {changeroot, Tupel},
+       NewState = State;
+    true -> BestEdgeKey ! {connect, State#state.nodeLevel, Tupel},
+            NewState = State#state{edgeDict = updateEdgeState(State, BestEdgeKey, branch())}
   end,
-  BranchEdgeList.
+  NewState.
 %------------Hilfs-Funktionen----------------------------------------------
 getMinWeightEdgeKey(EdgeDict) ->
   [FirstKey | _] = dict:fetch_keys(EdgeDict),
@@ -236,6 +235,13 @@ getMinWeightEdgeKey(EdgeDict) ->
 
 getEdge(State, EdgeKey) ->
   dict:fetch(EdgeKey, State#state.edgeDict).
+
+updateEdgeState(State, EdgeKey, NewEdgeState) ->
+  NewDict = dict:update(EdgeKey,
+    fun(Edge) -> Edge#edge{state = NewEdgeState} end,
+    State#state.edgeDict
+  ),
+  NewDict.
 
 getAdjacentNodeFromTupel(State, Tupel) ->
   {Weight, NodeX, NodeY} = Tupel,
