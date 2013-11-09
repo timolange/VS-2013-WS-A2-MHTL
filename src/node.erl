@@ -177,21 +177,20 @@ response_reject(State, Edge) ->
 
 response_report(State, Weight, Edge) ->
   if Edge /= State#state.in_Branch
-    -> State#state{find_count = State#state.find_count - 1},
-    if Weight < State#state.best_Weight
-      -> State#state{best_Weight = Weight,
-    best_Edge = Edge};
-      true -> undefined,
-        report(State)
-    end;
+      -> {NewBestEdge, NewBestWeight} = case getEdge(State, Edge)#edge.weight < State#state.best_Weight of
+                                          true -> {Edge, getEdge(State, Edge)#edge.weight};
+                                          false -> {State#state.best_Edge, State#state.best_Weight}
+                                        end,
+         NewState = State#state{find_count = State#state.find_count - 1,
+                                best_Edge = NewBestEdge,
+                                best_Weight = NewBestWeight},
+         report(NewState);
     State#state.nodeState == find()
-      -> self() ! {report, Weight, Edge};
+      -> self() ! {report, Weight, getTupelFromEdgeKey(State, Edge)};
     Weight > State#state.best_Weight
       -> change_root(State);
     Weight == State#state.best_Weight and Weight == State#state.infinity_weight ->
       halt()
-
-
   end.
 
 
