@@ -87,32 +87,49 @@ loop(State) ->
 %------------Algorithmus-Funktionen----------------------------------------------
 response_connect(State, Level, Edge) ->
   if State#state.nodeState == sleeping()
-    -> wakeup(State);
-    true -> undefined
+    -> NewState = wakeup(State);
+    true -> NewState = State
   end,
 
-  if Level < State#state.nodeLevel
-    -> getEdge(State, Edge)#edge{state = branch()},
-    Edge ! {initiate, Level, State#state.fragName, State#state.nodeState, Edge},
-    if State#state.nodeState == find()
-      -> State#state{find_count = (State#state.find_count + 1)};
-      true -> undefined
-    end;
-    getEdge(State, Edge)#edge.state == basic()
+  if Level < NewState#state.nodeLevel
+    -> SecondNewState = updateEdgeState(NewState, Edge, branch()),
+       Edge ! {initiate, NewState#state.nodeLevel, NewState#state.fragName, NewState#state.nodeState, Edge},
+       if SecondNewState#state.nodeState == find()
+         -> ThirdNewState = SecondNewState#state{find_count = (NewState#state.find_count + 1)};
+         true -> SecondNewState
+       end;
+    getEdge(NewState, Edge)#edge.state == basic()
       -> self() ! {connect, Level, Edge};
-    true -> Edge ! {initiate, (State#state.nodeLevel + 1), getEdge(State, Edge)#edge.weight, find(), Edge}
+    true -> Edge ! {initiate, (NewState#state.nodeLevel + 1), getEdge(NewState, Edge)#edge.weight, find(), Edge}
 
   end.
 
 
 response_initiate(State, Level, FragName, NodeState, Edge) ->
-  State#state{nodeLevel = Level,
-  fragName = FragName,
-  nodeState = NodeState,
-  edgeDict = dict:update(Edge, fun(Edge) -> (Edge#edge.state = Edge) end, State#state.edgeDict),
-  best_Edge = nil(),
-  best_Weight = State#state.infinity_weight}
-.
+  NewFindCount = dict:fold(
+    fun(EdgeKey, EdgeVal, Fcount) -> case EdgeVal#edge.state == branch() and not(EdgeKey == Edge) of
+                                       true -> EdgeKey ! {initiate,Level,FragName,NodeState,getTupelFromEdgeKey(State, EdgeKey)},
+                                               Fcount + 1;
+                                       false -> Fcount
+                                     end
+    end,
+    State#state.find_count,
+    State#state.edgeDict
+  ),
+  NewState = State#state{nodeLevel = Level,
+                         fragName = FragName,
+                         nodeState = NodeState,
+                         in_Branch = Edge,
+                         best_Edge = nil(),
+                         best_Weight = State#state.infinity_weight,
+                         find_count = case NodeState == find() of
+                                        true -> NewFindCount;
+                                        false -> State#state.find_count
+                                      end},
+  if NodeState == find()
+   -> test(NewState);
+   true -> NewState
+end.
 
 
 response_test(State, Level, FragName, Edge)
