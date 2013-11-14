@@ -15,6 +15,8 @@ pushSL/2, popSL/1, popfiSL/1, findSL/2, findneSL/2, lengthSL/1, minNrSL/1, maxNr
 -export([start/2]).
 
 %------------Konstanten------------------------------------------------
+confPath() -> "node_config/".
+
 found() -> found.
 sleeping() -> sleeping.
 find() -> find.
@@ -48,6 +50,8 @@ buildDict(EdgeList) ->
     EdgeList
   ).
 %------------initialisieren----------------------------------------------
+%der nodeName muss einer node.cfg ohne dateiendung im dir /node_config/ config entsprechen
+%% bspw.: Nodename="node0", datei="/node_config/node0.cfg"
 start(NodeName, Nameservice) ->
 
   %verbindung mit globalen namensservice herstellen
@@ -55,9 +59,9 @@ start(NodeName, Nameservice) ->
   %Nodename global verfuegbar machen
   global:register_name(NodeName, self()),
 
-  {ok, EdgeList} = file:consult("node.cfg"),
+  {ok, EdgeList} = file:consult(confPath()++NodeName++".cfg"),
   State = #state{edgeDict = buildDict(EdgeList),
-  nodeName = NodeName},
+                 nodeName = NodeName},
   loop(State).
 %------------Loop--------------------------------------------------------
 loop(State) ->
