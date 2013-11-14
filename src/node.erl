@@ -97,7 +97,9 @@ loop(State) ->
     {connect, Level, Edge} ->
       NewState = response_connect(State, Level, getEdgeKeyFromTupel(State, Edge)),
       logState(NewState, "initiate"),
-      loop(NewState)
+      loop(NewState);
+    {exit, Msg} ->
+      logState(State, Msg)
   end.
 %------------Algorithmus-Funktionen----------------------------------------------
 response_connect(State, Level, Edge) ->
@@ -213,11 +215,13 @@ response_report(State, Weight, Edge) ->
                                 best_Weight = NewBestWeight},
          report(NewState);
     State#state.nodeState == Find
-      -> self() ! {report, Weight, getTupelFromEdgeKey(State, Edge)};
+      -> self() ! {report, Weight, getTupelFromEdgeKey(State, Edge)},
+         State;
     Weight > State#state.best_Weight
       -> change_root(State);
-    (Weight == State#state.best_Weight) and (Weight == State#state.infinity_weight) ->
-      halt()
+    (Weight == State#state.best_Weight) and (Weight == State#state.infinity_weight)
+      -> self() ! {exit, halt},
+         State
   end.
 
 
@@ -324,7 +328,7 @@ anyEdgeInState(State, Edgestate) ->
   ).
 
 logState(State, Msg) ->
-  logging("Node.log", io_lib:format("~p erhalten, neuer Status:
+  logging("Node.log", io_lib:format("~p erhalten, um ~s , neuer Status:
                                      nodeState ~p,
                                      nodeLevel ~p,
                                      fragName ~p,
@@ -337,6 +341,7 @@ logState(State, Msg) ->
                                      nodeName ~p,
                                      infinity_weight ~p~n",
                                     [Msg,
+                                     timeMilliSecond(),
                                      State#state.nodeState,
                                      State#state.nodeLevel,
                                      State#state.fragName,
