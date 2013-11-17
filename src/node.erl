@@ -53,16 +53,17 @@ buildDict(EdgeList) ->
 %der nodeName muss einer node.cfg ohne dateiendung im dir /node_config/ config entsprechen
 %% bspw.: Nodename="node0", datei="/node_config/node0.cfg"
 start(NodeName, Nameservice) ->
+  File = confPath()++NodeName++".cfg",
+  {ok, EdgeList} = file:consult(File),
+  State = #state{edgeDict = buildDict(EdgeList),
+                 nodeName = NodeName},
 
+  NodePID = spawn(fun() -> loop(State) end),
   %verbindung mit globalen namensservice herstellen
   net_adm:ping(Nameservice),
   %Nodename global verfuegbar machen
-  global:register_name(NodeName, self()),
-
-  {ok, EdgeList} = file:consult(confPath()++NodeName++".cfg"),
-  State = #state{edgeDict = buildDict(EdgeList),
-                 nodeName = NodeName},
-  loop(State).
+  global:register_name(list_to_atom(NodeName), NodePID),
+  logging("Node.log", io_lib:format(NodeName++" Startzeit: ~s mit PID ~s~n", [timeMilliSecond(),to_String(NodePID)])).
 %------------Loop--------------------------------------------------------
 loop(State) ->
   receive

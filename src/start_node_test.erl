@@ -10,12 +10,13 @@
 -author("timey").
 
 %% API
--export([start/0]).
+-export([start/1]).
 
-start() ->
-  NodeList = [{node0},{node1},{node2},{node3},{node4},{node5},{node6}],
+start(Node) ->
+  NodeList = ["node0","node1","node2","node3","node4","node5","node6"],
   Startnode = fun(NodeName) ->
-                spawn(fun() -> node:start(NodeName, self()) end)
+                erlang:display(NodeName),
+                node:start(NodeName, Node)
               end,
   lists:foreach(Startnode, NodeList),
   [FirstNode | _ ] = NodeList,
