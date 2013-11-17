@@ -25,6 +25,7 @@ basic() -> basic.
 branch() -> branch.
 rejected() -> rejected().
 nil() -> nil.
+infinity_weight() -> 9999999.
 %------------Datenstruktur----------------------------------------------
 -record(state, {nodeState = sleeping(),
                 nodeLevel,
@@ -36,7 +37,7 @@ nil() -> nil.
                 in_Branch,
                 find_count,
                 nodeName,
-                infinity_weight}).
+                infinity_weight = infinity_weight()}).
 
 -record(edge, {weight,
                state = basic()}).
