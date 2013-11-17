@@ -114,14 +114,14 @@ response_connect(State, Level, Edge) ->
   EdgeVal = getEdge(NewState, Edge),
   if Level < NewState#state.nodeLevel
       -> SecondNewState = NewState#state{edgeDict = updateEdgeState(NewState, Edge, branch())},
-         Edge ! {initiate, SecondNewState#state.nodeLevel, SecondNewState#state.fragName, SecondNewState#state.nodeState, getTupelFromEdgeKey(SecondNewState, Edge)},
+         global:whereis_name(Edge) ! {initiate, SecondNewState#state.nodeLevel, SecondNewState#state.fragName, SecondNewState#state.nodeState, getTupelFromEdgeKey(SecondNewState, Edge)},
          if SecondNewState#state.nodeState == Find
            -> SecondNewState#state{find_count = SecondNewState#state.find_count + 1};
            true -> SecondNewState
          end;
      EdgeVal#edge.state == Basic
        -> self() ! {connect, Level, getTupelFromEdgeKey(NewState, Edge)};
-     true -> Edge ! {initiate, (NewState#state.nodeLevel + 1), EdgeVal#edge.weight, find(), getTupelFromEdgeKey(NewState, Edge)},
+     true -> global:whereis_name(Edge) ! {initiate, (NewState#state.nodeLevel + 1), EdgeVal#edge.weight, find(), getTupelFromEdgeKey(NewState, Edge)},
              NewState
 
   end.
@@ -130,7 +130,7 @@ response_connect(State, Level, Edge) ->
 response_initiate(State, Level, FragName, NodeState, Edge) ->
   NewFindCount = dict:fold(
     fun(EdgeKey, EdgeVal, Fcount) -> case EdgeVal#edge.state == branch() and not(EdgeKey == Edge) of
-                                       true -> EdgeKey ! {initiate,Level,FragName,NodeState,getTupelFromEdgeKey(State, EdgeKey)},
+                                       true -> global:whereis_name(EdgeKey) ! {initiate,Level,FragName,NodeState,getTupelFromEdgeKey(State, EdgeKey)},
                                                Fcount + 1;
                                        false -> Fcount
                                      end
@@ -166,14 +166,14 @@ response_test(State, Level, FragName, Edge) ->
     true -> self() ! {test, Level, FragName, getTupelFromEdgeKey(NewState, Edge)},
             NewState;
     false -> case FragName /= NewState#state.fragName of
-               true -> Edge ! {accept,getTupelFromEdgeKey(NewState, Edge)},
+               true -> global:whereis_name(Edge) ! {accept,getTupelFromEdgeKey(NewState, Edge)},
                        NewState;
                false -> SecondNewState = case EdgeVal#edge.state == basic() of
                                            true -> State#state{edgeDict = updateEdgeState(NewState, Edge, rejected())};
                                            false -> NewState
                                          end,
                         case SecondNewState#state.test_Edge /= Edge of
-                          true -> Edge ! {reject,getTupelFromEdgeKey(State, Edge)},
+                          true -> global:whereis_name(Edge) ! {reject,getTupelFromEdgeKey(State, Edge)},
                                   SecondNewState;
                           false -> test(SecondNewState)
                         end
@@ -237,7 +237,7 @@ wakeup(State) ->
     nodeState = found(),
     find_count = 0
   },
-  MinWeightEdgeKey ! {connect, NewState#state.nodeLevel, getTupelFromEdgeKey(NewState, MinWeightEdgeKey)},
+  global:whereis_name(MinWeightEdgeKey) ! {connect, NewState#state.nodeLevel, getTupelFromEdgeKey(NewState, MinWeightEdgeKey)},
   NewState.
 
 test(State) ->
@@ -246,7 +246,7 @@ test(State) ->
   if AnyBasicEdge
     -> BasicEdges = dict:filter(fun(_Key,Val) -> Val#edge.state == basic() end,State#state.edgeDict),
        Test_Edge = getMinWeightEdgeKey(BasicEdges),
-       Test_Edge ! {test, State#state.nodeLevel, State#state.fragName, getTupelFromEdgeKey(State, Test_Edge)},
+       global:whereis_name(Test_Edge) ! {test, State#state.nodeLevel, State#state.fragName, getTupelFromEdgeKey(State, Test_Edge)},
        NewState = State#state{test_Edge = Test_Edge};
     true ->NewState = report(State#state{test_Edge = nil()})
   end,
@@ -257,7 +257,7 @@ report(State) ->
   Nil = nil(),
   if (State#state.find_count == 0) and (State#state.test_Edge == Nil)
     -> NewState = State#state{nodeState = found()},
-       State#state.in_Branch ! {report, NewState#state.best_Weight, getTupelFromEdgeKey(State, State#state.in_Branch)};
+       global:whereis_name(State#state.in_Branch) ! {report, NewState#state.best_Weight, getTupelFromEdgeKey(State, State#state.in_Branch)};
     true -> NewState = State
   end,
   NewState.
@@ -269,9 +269,9 @@ change_root(State) ->
   BestEdgeState = BestEdgeVal#edge.state,
   Tupel = getTupelFromEdgeKey(State, BestEdgeKey),
   if BestEdgeState == Branch
-    -> BestEdgeKey ! {changeroot, Tupel},
+    -> global:whereis_name(BestEdgeKey) ! {changeroot, Tupel},
        NewState = State;
-    true -> BestEdgeKey ! {connect, State#state.nodeLevel, Tupel},
+    true -> global:whereis_name(BestEdgeKey) ! {connect, State#state.nodeLevel, Tupel},
             NewState = State#state{edgeDict = updateEdgeState(State, BestEdgeKey, branch())}
   end,
   NewState.
