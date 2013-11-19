@@ -130,7 +130,7 @@ response_connect(State, Level, Edge) ->
 
 response_initiate(State, Level, FragName, NodeState, Edge) ->
   NewFindCount = dict:fold(
-    fun(EdgeKey, EdgeVal, Fcount) -> case EdgeVal#edge.state == branch() and not(EdgeKey == Edge) of
+    fun(EdgeKey, EdgeVal, Fcount) -> case (EdgeVal#edge.state == branch()) and (not(EdgeKey == Edge)) of
                                        true -> global:whereis_name(EdgeKey) ! {initiate,Level,FragName,NodeState,getTupelFromEdgeKey(State, EdgeKey)},
                                                Fcount + 1;
                                        false -> Fcount
