@@ -306,10 +306,11 @@ updateEdgeState(State, EdgeKey, NewEdgeState) ->
 %jedes tupel muss den globalen namen des sendenden knoten enthalten und des empfangenen(unser nodename), da alle knoten nur ihre nachbarn kennen
 getEdgeKeyFromTupel(State, Tupel) ->
   {_Weight, NodeX, NodeY} = Tupel,
-  case NodeX == State#state.nodeName of
-    true -> NodeY;
-    false -> NodeX
-  end.
+  EdgeKey = case NodeX == State#state.nodeName of
+              true -> NodeY;
+              false -> NodeX
+            end,
+  list_to_atom(EdgeKey).
 
 getTupelFromEdgeKey(State, EdgeKey) ->
   NodeX = State#state.nodeName,
