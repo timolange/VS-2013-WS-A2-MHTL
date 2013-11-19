@@ -281,13 +281,13 @@ getMinWeightEdgeKey(EdgeDict) ->
   [FirstKey | _] = dict:fetch_keys(EdgeDict),
   FirstEdge = dict:fetch(FirstKey, EdgeDict),
   {MinKey, _MinVal} = dict:fold(
-    fun(EdgeKey, EdgeVal, MinWeightEdge) -> {_MinEdgeKey, MinEdgeVal} = MinWeightEdge,
+    fun(EdgeKey, EdgeVal, MinWeightEdge_KeyValPair) -> {_MinEdgeKey, MinEdgeVal} = MinWeightEdge_KeyValPair,
                                             case EdgeVal#edge.weight < MinEdgeVal#edge.weight of
                                               true -> {EdgeKey, EdgeVal};
-                                              false -> MinWeightEdge
+                                              false -> MinWeightEdge_KeyValPair
                                             end
     end,
-    FirstEdge,
+    {FirstKey, FirstEdge},
     EdgeDict
   ),
   MinKey.

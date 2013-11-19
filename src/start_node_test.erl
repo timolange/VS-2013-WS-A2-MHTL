@@ -12,12 +12,15 @@
 %% API
 -export([start/1]).
 
-start(Node) ->
+%Nameservice muss ein atom sein und in '' uebergeben werden, bsp.:
+start(Nameservice) ->
   NodeList = ["node0","node1","node2","node3","node4","node5","node6"],
   Startnode = fun(NodeName) ->
-                erlang:display(NodeName),
-                node:start(NodeName, Node)
+                %erlang:display(NodeName),
+                node:start(NodeName, Nameservice)
               end,
   lists:foreach(Startnode, NodeList),
+  %wakeup an den ersten knoten senden und damit die suche nach dem Minimum-Weight-Spanning-Tree starten
   [FirstNode | _ ] = NodeList,
-  FirstNode ! {wakeup}.
+  FirstNode_GlobalName = list_to_atom(FirstNode),
+  global:whereis_name(FirstNode_GlobalName) ! {wakeup}.
