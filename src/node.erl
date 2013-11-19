@@ -121,7 +121,8 @@ response_connect(State, Level, Edge) ->
            true -> SecondNewState
          end;
      EdgeVal#edge.state == Basic
-       -> self() ! {connect, Level, getTupelFromEdgeKey(NewState, Edge)};
+       -> self() ! {connect, Level, getTupelFromEdgeKey(NewState, Edge)},
+          NewState;
      true -> global:whereis_name(Edge) ! {initiate, (NewState#state.nodeLevel + 1), EdgeVal#edge.weight, find(), getTupelFromEdgeKey(NewState, Edge)},
              NewState
 
