@@ -57,7 +57,7 @@ start(NodeName, Nameservice) ->
   File = confPath()++NodeName++".cfg",
   {ok, EdgeList} = file:consult(File),
   State = #state{edgeDict = buildDict(EdgeList),
-                 nodeName = NodeName},
+                 nodeName = list_to_atom(NodeName)},
 
   NodePID = spawn(fun() -> loop(State) end),
   %verbindung mit globalen namensservice herstellen
@@ -306,11 +306,10 @@ updateEdgeState(State, EdgeKey, NewEdgeState) ->
 %jedes tupel muss den globalen namen des sendenden knoten enthalten und des empfangenen(unser nodename), da alle knoten nur ihre nachbarn kennen
 getEdgeKeyFromTupel(State, Tupel) ->
   {_Weight, NodeX, NodeY} = Tupel,
-  EdgeKey = case NodeX == State#state.nodeName of
-              true -> NodeY;
-              false -> NodeX
-            end,
-  list_to_atom(EdgeKey).
+  case NodeX == State#state.nodeName of
+    true -> NodeY;
+    false -> NodeX
+  end.
 
 getTupelFromEdgeKey(State, EdgeKey) ->
   NodeX = State#state.nodeName,
