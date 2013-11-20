@@ -24,7 +24,7 @@ find() -> find.
 
 basic() -> basic.
 branch() -> branch.
-rejected() -> rejected().
+rejected() -> rejected.
 nil() -> nil.
 infinity_weight() -> 9999999.
 %------------Datenstruktur----------------------------------------------
@@ -101,9 +101,7 @@ loop(State) ->
     {connect, Level, Edge} ->
       NewState = response_connect(State, Level, getEdgeKeyFromTupel(State, Edge)),
       logState(NewState, "initiate"),
-      loop(NewState);
-    {exit, Msg} ->
-      logState(State, Msg)
+      loop(NewState)
   end.
 %------------Algorithmus-Funktionen----------------------------------------------
 response_connect(State, Level, Edge) ->
@@ -225,8 +223,8 @@ response_report(State, Weight, Edge) ->
     Weight > State#state.best_Weight
       -> change_root(State);
     (Weight == State#state.best_Weight) and (Weight == State#state.infinity_weight)
-      -> self() ! {exit, halt},
-         State;
+      -> logging(atom_to_list(State#state.nodeName)++".log", io_lib:format("MST gefunden, beendet um: ~s~n", [timeMilliSecond()])),
+         exit(normal);
     true -> State
   end.
 

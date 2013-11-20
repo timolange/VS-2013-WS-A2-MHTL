@@ -23,4 +23,5 @@ start(Nameservice) ->
   %wakeup an den ersten knoten senden und damit die suche nach dem Minimum-Weight-Spanning-Tree starten
   [FirstNode | _ ] = NodeList,
   FirstNode_GlobalName = list_to_atom(FirstNode),
+  timer:sleep(200),
   global:whereis_name(FirstNode_GlobalName) ! {wakeup}.
