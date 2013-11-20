@@ -15,6 +15,7 @@ pushSL/2, popSL/1, popfiSL/1, findSL/2, findneSL/2, lengthSL/1, minNrSL/1, maxNr
 -export([start/2]).
 
 %------------Konstanten------------------------------------------------
+-define(LOGGING, false).
 confPath() -> "node_config/".
 
 found() -> found.
@@ -62,6 +63,7 @@ start(NodeName, Nameservice) ->
   NodePID = spawn(fun() -> loop(State) end),
   %verbindung mit globalen namensservice herstellen
   net_adm:ping(Nameservice),
+  %TODO nicht alle nodes werden global registriert, fehler noch nicht gefunden!!! dadurch entsteht fehler beim senden
   %Nodename global verfuegbar machen
   global:register_name(list_to_atom(NodeName), NodePID),
   logging("Node.log", io_lib:format(NodeName++" Startzeit: ~s mit PID ~s~n", [timeMilliSecond(),to_String(NodePID)])).
@@ -331,7 +333,9 @@ anyEdgeInState(State, Edgestate) ->
   ).
 
 logState(State, Msg) ->
-  logging("Node.log", io_lib:format("~p erhalten, um ~s , neuer Status:
+  case ?LOGGING == true of
+    true ->
+      logging("Node.log", io_lib:format("~p erhalten, um ~s , neuer Status:
                                      nodeState ~p,
                                      nodeLevel ~p,
                                      fragName ~p,
@@ -343,17 +347,19 @@ logState(State, Msg) ->
                                      find_count ~p,
                                      nodeName ~p,
                                      infinity_weight ~p~n",
-                                    [Msg,
-                                     timeMilliSecond(),
-                                     State#state.nodeState,
-                                     State#state.nodeLevel,
-                                     State#state.fragName,
-                                     State#state.edgeDict,
-                                     State#state.best_Weight,
-                                     State#state.best_Edge,
-                                     State#state.test_Edge,
-                                     State#state.in_Branch,
-                                     State#state.find_count,
-                                     State#state.nodeName,
-                                     State#state.infinity_weight
-                                    ])).
+        [Msg,
+          timeMilliSecond(),
+          State#state.nodeState,
+          State#state.nodeLevel,
+          State#state.fragName,
+          State#state.edgeDict,
+          State#state.best_Weight,
+          State#state.best_Edge,
+          State#state.test_Edge,
+          State#state.in_Branch,
+          State#state.find_count,
+          State#state.nodeName,
+          State#state.infinity_weight
+        ]));
+    false -> false
+  end.
