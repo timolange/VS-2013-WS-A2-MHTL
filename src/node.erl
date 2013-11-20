@@ -226,7 +226,8 @@ response_report(State, Weight, Edge) ->
       -> change_root(State);
     (Weight == State#state.best_Weight) and (Weight == State#state.infinity_weight)
       -> self() ! {exit, halt},
-         State
+         State;
+    true -> State
   end.
 
 
