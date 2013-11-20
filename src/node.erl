@@ -15,7 +15,7 @@ pushSL/2, popSL/1, popfiSL/1, findSL/2, findneSL/2, lengthSL/1, minNrSL/1, maxNr
 -export([start/2]).
 
 %------------Konstanten------------------------------------------------
--define(LOGGING, false).
+-define(LOGGING, true).
 confPath() -> "node_config/".
 
 found() -> found.
@@ -66,7 +66,7 @@ start(NodeName, Nameservice) ->
   %TODO nicht alle nodes werden global registriert, fehler noch nicht gefunden!!! dadurch entsteht fehler beim senden
   %Nodename global verfuegbar machen
   global:register_name(list_to_atom(NodeName), NodePID),
-  logging("Node.log", io_lib:format(NodeName++" Startzeit: ~s mit PID ~s~n", [timeMilliSecond(),to_String(NodePID)])).
+  logging(atom_to_list(State#state.nodeName)++".log", io_lib:format(NodeName++" Startzeit: ~s mit PID ~s~n", [timeMilliSecond(),to_String(NodePID)])).
 %------------Loop--------------------------------------------------------
 loop(State) ->
   receive
@@ -336,7 +336,7 @@ anyEdgeInState(State, Edgestate) ->
 logState(State, Msg) ->
   case ?LOGGING == true of
     true ->
-      logging("Node.log", io_lib:format("~p erhalten, um ~s , neuer Status:
+      logging(atom_to_list(State#state.nodeName)++".log", io_lib:format("~p erhalten, um ~s , neuer Status:
                                      nodeState ~p,
                                      nodeLevel ~p,
                                      fragName ~p,
