@@ -71,36 +71,44 @@ start(NodeName, Nameservice) ->
 loop(State) ->
   receive
     {wakeup} ->
+      logMsg(State, {wakeup}),
       NewState = wakeup(State),
-      logState(NewState, {wakeup}),
+      logState(NewState),
       loop(NewState);
     {initiate, Level, FragName, NodeState, Edge} ->
+      logMsg(State, {initiate, Level, FragName, NodeState, Edge}),
       NewState = response_initiate(State, Level, FragName, NodeState, getEdgeKeyFromTupel(State, Edge)),
-      logState(NewState, {initiate, Level, FragName, NodeState, Edge}),
+      logState(NewState),
       loop(NewState);
     {test, Level, FragName, Edge} ->
+      logMsg(State, {test, Level, FragName, Edge}),
       NewState = response_test(State, Level, FragName, getEdgeKeyFromTupel(State, Edge)),
-      logState(NewState, {test, Level, FragName, Edge}),
+      logState(NewState),
       loop(NewState);
     {accept, Edge} ->
+      logMsg(State, {accept, Edge}),
       NewState = response_accept(State, getEdgeKeyFromTupel(State, Edge)),
-      logState(NewState, {accept, Edge}),
+      logState(NewState),
       loop(NewState);
     {reject, Edge} ->
+      logMsg(State, {reject, Edge}),
       NewState = response_reject(State, getEdgeKeyFromTupel(State, Edge)),
-      logState(NewState, {reject, Edge}),
+      logState(NewState),
       loop(NewState);
     {report, Weight, Edge} ->
+      logMsg(State, {report, Weight, Edge}),
       NewState = response_report(State, Weight, getEdgeKeyFromTupel(State, Edge)),
-      logState(NewState, {report, Weight, Edge}),
+      logState(NewState),
       loop(NewState);
     {changeroot, _Edge} ->
+      logMsg(State, {changeroot, _Edge}),
       NewState = response_changeroot(State),
-      logState(NewState, {changeroot, _Edge}),
+      logState(NewState),
       loop(NewState);
     {connect, Level, Edge} ->
+      logMsg(State, {connect, Level, Edge}),
       NewState = response_connect(State, Level, getEdgeKeyFromTupel(State, Edge)),
-      logState(NewState, {connect, Level, Edge}),
+      logState(NewState),
       loop(NewState)
   end.
 %------------Algorithmus-Funktionen----------------------------------------------
@@ -332,13 +340,23 @@ anyEdgeInState(State, Edgestate) ->
     State#state.edgeDict
   ).
 
-logState(State, Msg) ->
+logMsg(State, Msg) ->
   case ?LOGGING == true of
     true ->
       logging(atom_to_list(State#state.nodeName)++".log", io_lib:format(
 "~p erhalten,
-  um ~s ,
-  neuer Status:
+um ~s ,~n",
+        [Msg,
+          timeMilliSecond()
+        ]));
+    false -> false
+  end.
+
+logState(State) ->
+  case ?LOGGING == true of
+    true ->
+      logging(atom_to_list(State#state.nodeName)++".log", io_lib:format(
+"neuer Status:
               nodeState   ~p,
               nodeLevel   ~p,
               fragName    ~p,
@@ -349,9 +367,7 @@ logState(State, Msg) ->
               in_Branch   ~p,
               find_count  ~p,
               nodeName    ~p~n~n",
-        [Msg,
-          timeMilliSecond(),
-          State#state.nodeState,
+        [ State#state.nodeState,
           State#state.nodeLevel,
           State#state.fragName,
           dict:to_list(State#state.edgeDict),
