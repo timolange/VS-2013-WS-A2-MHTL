@@ -222,8 +222,8 @@ response_report(State, Weight, Edge) ->
   Find = find(),
   EdgeVal = getEdge(State, Edge),
   if Edge /= State#state.in_Branch
-      -> {NewBestEdge, NewBestWeight} = case EdgeVal#edge.weight < State#state.best_Weight of
-                                          true -> {Edge, EdgeVal#edge.weight};
+      -> {NewBestEdge, NewBestWeight} = case Weight < State#state.best_Weight of
+                                          true -> {Edge, Weight};
                                           false -> {State#state.best_Edge, State#state.best_Weight}
                                         end,
          NewState = State#state{find_count = State#state.find_count - 1,
