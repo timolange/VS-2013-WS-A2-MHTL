@@ -125,8 +125,11 @@ response_connect(State, Level, Edge) ->
       -> SecondNewState = NewState#state{edgeDict = updateEdgeState(NewState, Edge, branch())},
          global:whereis_name(Edge) ! {initiate, SecondNewState#state.nodeLevel, SecondNewState#state.fragName, SecondNewState#state.nodeState, getTupelFromEdgeKey(SecondNewState, Edge)},
          if SecondNewState#state.nodeState == Find
-           -> SecondNewState#state{find_count = SecondNewState#state.find_count + 1};
-           true -> SecondNewState
+           -> ThirdNewState = SecondNewState#state{find_count = SecondNewState#state.find_count + 1},
+              logging(atom_to_list(State#state.nodeName)++".log", io_lib:format("response_connect,find-count-alt:~p, neu:~p~n",[SecondNewState#state.find_count, ThirdNewState#state.find_count])),
+              ThirdNewState;
+           true ->  logging(atom_to_list(State#state.nodeName)++".log", io_lib:format("response_connect,find-count-alt:~p~n",[SecondNewState#state.find_count])),
+                    SecondNewState
          end;
      EdgeVal#edge.state == Basic
        -> self() ! {connect, Level, getTupelFromEdgeKey(NewState, Edge)},
@@ -155,8 +158,10 @@ response_initiate(State, Level, FragName, NodeState, Edge) ->
                          best_Edge = nil(),
                          best_Weight = State#state.infinity_weight,
                          find_count = case NodeState == find() of
-                                        true -> NewFindCount;
-                                        false -> State#state.find_count
+                                        true -> logging(atom_to_list(State#state.nodeName)++".log",io_lib:format("response_initiate,find-count-alt:~p, neu:~p~n",[State#state.find_count, NewFindCount])),
+                                                NewFindCount;
+                                        false ->  logging(atom_to_list(State#state.nodeName)++".log", io_lib:format("response_initiate,find-count-alt:~p~n",[State#state.find_count])),
+                                                  State#state.find_count
                                       end},
   Find = find(),
   if NodeState == Find
