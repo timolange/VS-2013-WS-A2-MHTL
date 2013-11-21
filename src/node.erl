@@ -72,35 +72,35 @@ loop(State) ->
   receive
     {wakeup} ->
       NewState = wakeup(State),
-      logState(NewState, "wakeup"),
+      logState(NewState, {wakeup}),
       loop(NewState);
     {initiate, Level, FragName, NodeState, Edge} ->
       NewState = response_initiate(State, Level, FragName, NodeState, getEdgeKeyFromTupel(State, Edge)),
-      logState(NewState, "initiate"),
+      logState(NewState, {initiate, Level, FragName, NodeState, Edge}),
       loop(NewState);
     {test, Level, FragName, Edge} ->
       NewState = response_test(State, Level, FragName, getEdgeKeyFromTupel(State, Edge)),
-      logState(NewState, "test"),
+      logState(NewState, {test, Level, FragName, Edge}),
       loop(NewState);
     {accept, Edge} ->
       NewState = response_accept(State, getEdgeKeyFromTupel(State, Edge)),
-      logState(NewState, "accept"),
+      logState(NewState, {accept, Edge}),
       loop(NewState);
     {reject, Edge} ->
       NewState = response_reject(State, getEdgeKeyFromTupel(State, Edge)),
-      logState(NewState, "reject"),
+      logState(NewState, {reject, Edge}),
       loop(NewState);
     {report, Weight, Edge} ->
       NewState = response_report(State, Weight, getEdgeKeyFromTupel(State, Edge)),
-      logState(NewState, "report"),
+      logState(NewState, {report, Weight, Edge}),
       loop(NewState);
     {changeroot, _Edge} ->
       NewState = response_changeroot(State),
-      logState(NewState, "changeroot"),
+      logState(NewState, {changeroot, _Edge}),
       loop(NewState);
     {connect, Level, Edge} ->
       NewState = response_connect(State, Level, getEdgeKeyFromTupel(State, Edge)),
-      logState(NewState, "initiate"),
+      logState(NewState, {connect, Level, Edge}),
       loop(NewState)
   end.
 %------------Algorithmus-Funktionen----------------------------------------------
@@ -266,6 +266,7 @@ report(State) ->
   NewState.
 
 change_root(State) ->
+  %TODO es soll an best_Edge gesendet werden und diese ist manchmal nil und fuert zum absturz, uhrsache noch nicht gefunden
   Branch = branch(),
   BestEdgeKey = State#state.best_Edge,
   BestEdgeVal = getEdge(State, BestEdgeKey),
@@ -334,31 +335,32 @@ anyEdgeInState(State, Edgestate) ->
 logState(State, Msg) ->
   case ?LOGGING == true of
     true ->
-      logging(atom_to_list(State#state.nodeName)++".log", io_lib:format("~p erhalten, um ~s , neuer Status:
-                                     nodeState ~p,
-                                     nodeLevel ~p,
-                                     fragName ~p,
-                                     edgeDict ~p,
-                                     best_Weight ~p,
-                                     best_Edge ~p,
-                                     test_Edge ~p,
-                                     in_Branch ~p,
-                                     find_count ~p,
-                                     nodeName ~p,
-                                     infinity_weight ~p~n",
+      logging(atom_to_list(State#state.nodeName)++".log", io_lib:format(
+"~p erhalten,
+  um ~s ,
+  neuer Status:
+              nodeState   ~p,
+              nodeLevel   ~p,
+              fragName    ~p,
+              edgeDict    ~p,
+              best_Weight ~p,
+              best_Edge   ~p,
+              test_Edge   ~p,
+              in_Branch   ~p,
+              find_count  ~p,
+              nodeName    ~p~n~n",
         [Msg,
           timeMilliSecond(),
           State#state.nodeState,
           State#state.nodeLevel,
           State#state.fragName,
-          State#state.edgeDict,
+          dict:to_list(State#state.edgeDict),
           State#state.best_Weight,
           State#state.best_Edge,
           State#state.test_Edge,
           State#state.in_Branch,
           State#state.find_count,
-          State#state.nodeName,
-          State#state.infinity_weight
+          State#state.nodeName
         ]));
     false -> false
   end.
